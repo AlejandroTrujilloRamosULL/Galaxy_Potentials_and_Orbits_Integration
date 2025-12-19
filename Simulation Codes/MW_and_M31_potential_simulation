@@ -1,0 +1,124 @@
+"Helmi Stream orbits adding Andromeda accretion with the Milky Way"
+
+"Selecting some members of the Helmi Streams to plot their orbits"
+with fits.open('/content/drive/MyDrive/Galáctica_proyect2/gaia_data.fits') as hdul:
+  header = hdul[1].header
+  data = hdul[1].data
+
+n_members = 10
+selected_members = data[:n_members]
+time_span = np.linspace(0, 3000, 600)*u.Myr
+
+"Selecting the gravitational potential that will influence"
+"the orbits trajectories"
+mw_potential = gp.MilkyWayPotential()
+
+"Modifying the potential so we also consider the accretion of the"
+"Andromeda to the Milky Way"
+
+"Andromeda Composite Potential"
+bulge = gp.HernquistPotential(m=3.2e10*u.Msun, c=0.61*u.kpc, units=galactic)
+disk = gp.MN3ExponentialDiskPotential(m=3.66e10*u.Msun, h_R=5.4*u.kpc,
+                                      h_z=0.6*u.kpc, units=galactic)
+halo = gp.NFWPotential(m=7.1e11*u.Msun, r_s=7.63*u.kpc, units=galactic)
+m31 = gp.CompositePotential(halo=halo, bulge=bulge, disk=disk)
+
+"Total Potential"
+total_pot = gp.CompositePotential()
+
+# Milky Way components
+total_pot['mw_bulge'] = mw_potential['bulge']
+total_pot['mw_disk'] = mw_potential['disk']
+total_pot['mw_halo'] = mw_potential['halo']
+
+# Andromeda components
+total_pot['m31_bulge'] = bulge
+total_pot['m31_disk'] = disk
+total_pot['m31_halo'] = halo
+
+"Integrator method (already defined in previous snippets of code)"
+selected_w0 = w0[:n_members]
+w0_com = prog_w0
+H = gp.Hamiltonian(total_pot)
+
+orbits = H.integrate_orbit(selected_w0, dt=5*u.Myr,
+                           t1=0*u.Myr, t2=3000*u.Myr)
+
+orbits_com = H.integrate_orbit(w0_com, dt=5*u.Myr,
+                               t1=0*u.Myr, t2=3000*u.Myr)
+
+"Animation function"
+"Defining the lines and the markers (stored values), which are the bodies moving"
+fig, ax = plt.subplots(figsize=(6, 6))
+
+"Empty lists to store the updated values"
+lines = []
+points = []
+color = "lightblue"
+
+for i in range(len(selected_members)):
+  if i==0:
+    member_label="Helmi Stream Member"
+    com_label="COM"
+  else:
+    member_label=""
+    com_label=""
+  line, = ax.plot([], [], color=color, lw=2)
+  lines.append(line)
+  point, = ax.plot([], [], color=color, lw=2, marker="o",
+                   markeredgecolor="black", markeredgewidth=1,
+                   label=member_label)
+  points.append(point)
+  com_line, = ax.plot([], [], color="black", lw=2, linestyle="dashed")
+  com_point, = ax.plot([], [], color="black", lw=2, marker="*", label=com_label)
+
+"Defining the animation frame labels that will be updated at each time step"
+ax.set_xlabel('X [kpc]', fontsize=14)
+ax.set_ylabel('Z [kpc]', fontsize=14)
+ax.tick_params(which="both", labelsize=16, direction="in", top="True", right="True")
+ax.set_xlim(-25, 25)
+ax.set_ylim(-25, 25)
+ax.set_title("Helmi Stream")
+plt.legend(loc="upper right", prop={"size": 16})
+
+"Updating each frame creating the animation"
+def animation(i):
+  for j in range(len(selected_members)):
+    line = lines[j]
+    point = points[j]
+    x_position = [orbits.x[:i+1, j].to_value(u.kpc)]
+    x_sequence = [orbits.x[i, j].to_value(u.kpc)]
+    y_position = [orbits.z[:i+1, j].to_value(u.kpc)]
+    y_sequence = [orbits.z[i, j].to_value(u.kpc)]
+    com_x_position = [orbits_com.x[:i+1].to_value(u.kpc)]
+    com_y_position = [orbits_com.z[:i+1].to_value(u.kpc)]
+    com_x_sequence = [orbits_com.x[i].to_value(u.kpc)]
+    com_y_sequence = [orbits_com.z[i].to_value(u.kpc)]
+    line.set_xdata(x_position)
+    line.set_ydata(y_position)
+    point.set_xdata(x_sequence)
+    point.set_ydata(y_sequence)
+    com_line.set_xdata(com_x_position)
+    com_line.set_ydata(com_y_position)
+    com_point.set_xdata(com_x_sequence)
+    com_point.set_ydata(com_y_sequence)
+
+  time_value = time_span[i].to_value(u.Myr)
+  ax.set_title(f"Time: {time_value:.2f} Myr", fontsize=20)
+
+  return line, point, com_line, com_point
+
+"Defining the animation"
+anim = FuncAnimation(fig, animation, frames=len(orbits.t), interval=20)
+
+"Saving specific frames of the animation"
+frames = [200, 400, 599]
+for i in frames:
+  animation(i)
+  plt.savefig(f"frame_mw_m31_z_{i}.pdf", dpi=300)
+
+"Closing plot to iterate frames"
+plt.close()
+
+"HTML video display"
+HTML(anim.to_html5_video())
