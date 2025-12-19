@@ -1,0 +1,136 @@
+"Importing the necessary packages"
+# astropy imports
+import astropy.coordinates as coord
+from astropy.io import fits
+from astropy.table import QTable
+import astropy.units as u
+import astropy.constants as const
+from astroquery.gaia import Gaia
+
+# Third-party imports
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+from matplotlib import colors
+from matplotlib.animation import FuncAnimation
+from IPython.display import HTML
+import numpy as np
+import seaborn as sns
+%matplotlib inline
+
+# gala imports
+import gala.coordinates as gc
+import gala.dynamics as gd
+import gala.potential as gp
+import gala.integrate as gi
+from gala.dynamics import mockstream as ms
+from gala.units import galactic
+
+"Defining coordinates and 6 parameters necessary for orbits plotting"
+dist = coord.Distance(parallax=u.Quantity(gaia_data['parallax']))
+c = coord.SkyCoord(ra=gaia_data['ra'],
+                   dec=gaia_data['dec'],
+                   distance=dist,
+                   pm_ra_cosdec=gaia_data['pmra'],
+                   pm_dec=gaia_data['pmdec'],
+                   radial_velocity=gaia_data['radial_velocity'])
+galcen = c.transform_to(coord.Galactocentric(z_sun=0*u.pc,
+                                             galcen_distance=8.1*u.kpc))
+
+"Selecting some members of the Helmi Streams to plot their orbits"
+with fits.open("add your file path to the gaia_data.fits file") as hdul:
+  header = hdul[1].header
+  data = hdul[1].data
+
+n_members = 10
+selected_members = data[:n_members]
+time_span = np.linspace(0, 3000, 600)*u.Myr
+
+"Selecting the gravitational potential that will influence"
+"the orbits trajectories"
+potential = gp.MilkyWayPotential()
+
+"Integrator method (already defined in previous snippets of code)"
+w0 = gd.PhaseSpacePosition(galcen.cartesian)
+selected_w0 = w0[:n_members]
+w0_com = prog_w0
+H = gp.Hamiltonian(potential)
+orbits = H.integrate_orbit(selected_w0, dt=5*u.Myr,
+                           t1=0*u.Myr, t2=3000*u.Myr)
+orbits_com = H.integrate_orbit(w0_com, dt=5*u.Myr,
+                               t1=0*u.Myr, t2=3000*u.Myr)
+
+"Animation function"
+"Defining the lines and the markers (stored values), which are the bodies moving"
+fig, ax = plt.subplots(figsize=(6, 6))
+
+"Empty lists to store the updated values"
+lines = []
+points = []
+color = "lightblue"
+
+for i in range(len(selected_members)):
+  if i==0:
+    member_label="Helmi Stream Member"
+    com_label="COM"
+  else:
+    member_label=""
+    com_label=""
+  line, = ax.plot([], [], color=color, lw=2)
+  lines.append(line)
+  point, = ax.plot([], [], color=color, lw=2, marker="o",
+                   markeredgecolor="black", markeredgewidth=1,
+                   label=member_label)
+  points.append(point)
+  com_line, = ax.plot([], [], color="black", lw=2, linestyle="dashed")
+  com_point, = ax.plot([], [], color="black", lw=2, marker="*", label=com_label)
+
+"Defining the animation frame labels that will be updated at each time step"
+ax.set_xlabel('X [kpc]')
+ax.set_ylabel('Y [kpc]')
+ax.set_xlim(orbits.x.min().value-1 , orbits.x.max().value+1)
+ax.set_ylim(orbits.y.min().value-1, orbits.y.max().value+1)
+ax.set_title("Helmi Stream")
+plt.legend(loc="upper right")
+
+"Updating each frame creating the animation"
+def animation(i):
+  for j in range(len(selected_members)):
+    line = lines[j]
+    point = points[j]
+    x_position = [orbits.x[:i+1, j].to_value(u.kpc)]
+    x_sequence = [orbits.x[i, j].to_value(u.kpc)]
+    y_position = [orbits.y[:i+1, j].to_value(u.kpc)]
+    y_sequence = [orbits.y[i, j].to_value(u.kpc)]
+    com_x_position = [orbits_com.x[:i+1].to_value(u.kpc)]
+    com_y_position = [orbits_com.y[:i+1].to_value(u.kpc)]
+    com_x_sequence = [orbits_com.x[i].to_value(u.kpc)]
+    com_y_sequence = [orbits_com.y[i].to_value(u.kpc)]
+    line.set_xdata(x_position)
+    line.set_ydata(y_position)
+    point.set_xdata(x_sequence)
+    point.set_ydata(y_sequence)
+    com_line.set_xdata(com_x_position)
+    com_line.set_ydata(com_y_position)
+    com_point.set_xdata(com_x_sequence)
+    com_point.set_ydata(com_y_sequence)
+
+  time_value = time_span[i].to_value(u.Myr)
+  ax.set_title(f"Time: {time_value:.2f} Myr")
+
+  return line, point, com_line, com_point
+
+"Defining the animation"
+anim = FuncAnimation(fig, animation, frames=len(orbits.t), interval=20)
+
+"Saving specific frames of the animation"
+frames = [199, 399]
+for i in frames:
+  animation(i)
+  plt.savefig(f"frame_{i}.pdf", dpi=200)
+
+"Closing plot to iterate frames"
+plt.close()
+
+"HTML video display"
+HTML(anim.to_html5_video())
