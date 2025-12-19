@@ -1,7 +1,46 @@
 "Helmi Stream orbits adding Andromeda accretion with the Milky Way"
 
+"Importing the necessary packages"
+# astropy imports
+import astropy.coordinates as coord
+from astropy.io import fits
+from astropy.table import QTable
+import astropy.units as u
+import astropy.constants as const
+from astroquery.gaia import Gaia
+
+# Third-party imports
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+from matplotlib import colors
+from matplotlib.animation import FuncAnimation
+from IPython.display import HTML
+import numpy as np
+import seaborn as sns
+%matplotlib inline
+
+# gala imports
+import gala.coordinates as gc
+import gala.dynamics as gd
+import gala.potential as gp
+import gala.integrate as gi
+from gala.dynamics import mockstream as ms
+from gala.units import galactic
+
+"Defining coordinates and 6 parameters necessary for orbits plotting"
+dist = coord.Distance(parallax=u.Quantity(gaia_data['parallax']))
+c = coord.SkyCoord(ra=gaia_data['ra'],
+                   dec=gaia_data['dec'],
+                   distance=dist,
+                   pm_ra_cosdec=gaia_data['pmra'],
+                   pm_dec=gaia_data['pmdec'],
+                   radial_velocity=gaia_data['radial_velocity'])
+galcen = c.transform_to(coord.Galactocentric(z_sun=0*u.pc,
+                                             galcen_distance=8.1*u.kpc))
+
 "Selecting some members of the Helmi Streams to plot their orbits"
-with fits.open('/content/drive/MyDrive/Galáctica_proyect2/gaia_data.fits') as hdul:
+with fits.open("add your path file to the data in gaia_data.fits") as hdul:
   header = hdul[1].header
   data = hdul[1].data
 
