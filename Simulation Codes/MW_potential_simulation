@@ -26,7 +26,7 @@ import gala.integrate as gi
 from gala.dynamics import mockstream as ms
 from gala.units import galactic
 
-"Defining coordinates and 6 parameters necessary for orbits plotting"
+"Defining coordinates and using 6 parameters necessary for orbits plotting"
 dist = coord.Distance(parallax=u.Quantity(gaia_data['parallax']))
 c = coord.SkyCoord(ra=gaia_data['ra'],
                    dec=gaia_data['dec'],
@@ -42,16 +42,18 @@ with fits.open("add your file path to the gaia_data.fits file") as hdul:
   header = hdul[1].header
   data = hdul[1].data
 
-n_members = 10
-selected_members = data[:n_members]
-time_span = np.linspace(0, 3000, 600)*u.Myr
-
+n_members = 10 # 10 members of the Helmi system
+selected_members = data[:n_members] # selecting data of those 10 members
+time_span = np.linspace(0, 3000, 600)*u.Myr # integrating in time from 0 t0 3 Gyr wuth  a timestep of dt=5
+ 
 "Selecting the gravitational potential that will influence"
 "the orbits trajectories"
-potential = gp.MilkyWayPotential()
+potential = gp.MilkyWayPotential() # Milky Way Potential
 
 "Integrator method (already defined in previous snippets of code)"
-w0 = gd.PhaseSpacePosition(galcen.cartesian)
+w0 = gd.PhaseSpacePosition(galcen.cartesian) # initial phase space positions of 10 selected members
+prog_w0 = gd.PhaseSpacePosition(pos=[-8, 0, 0.] * u.kpc,
+                                vel=[0, 150, -89] * u.km/u.s) # initial phase space positions of the whole system
 selected_w0 = w0[:n_members]
 w0_com = prog_w0
 H = gp.Hamiltonian(potential)
@@ -64,7 +66,7 @@ orbits_com = H.integrate_orbit(w0_com, dt=5*u.Myr,
 "Defining the lines and the markers (stored values), which are the bodies moving"
 fig, ax = plt.subplots(figsize=(6, 6))
 
-"Empty lists to store the updated values"
+"Empty lists to store the updated values of the lines drawn by the orbits and the points which are the stars"
 lines = []
 points = []
 color = "lightblue"
@@ -94,18 +96,21 @@ ax.set_title("Helmi Stream")
 plt.legend(loc="upper right")
 
 "Updating each frame creating the animation"
+# One might like to change the position space plotted form X-Y to X-Z for example
+# by changing from y to z in the arguments in the arrays for position and sequence
+# as it is remarked in the added comments on the lines of code
 def animation(i):
   for j in range(len(selected_members)):
     line = lines[j]
     point = points[j]
     x_position = [orbits.x[:i+1, j].to_value(u.kpc)]
     x_sequence = [orbits.x[i, j].to_value(u.kpc)]
-    y_position = [orbits.y[:i+1, j].to_value(u.kpc)]
-    y_sequence = [orbits.y[i, j].to_value(u.kpc)]
+    y_position = [orbits.y[:i+1, j].to_value(u.kpc)] # here one might want to change to orbits.z[:i+1, j].to_value(u.kpc)
+    y_sequence = [orbits.y[i, j].to_value(u.kpc)] # here one might want to change to orbits.z[:i, j].to_value(u.kpc)
     com_x_position = [orbits_com.x[:i+1].to_value(u.kpc)]
-    com_y_position = [orbits_com.y[:i+1].to_value(u.kpc)]
+    com_y_position = [orbits_com.y[:i+1].to_value(u.kpc)] # here one might want to change to orbits_com.z[:i+1].to_value(u.kpc)
     com_x_sequence = [orbits_com.x[i].to_value(u.kpc)]
-    com_y_sequence = [orbits_com.y[i].to_value(u.kpc)]
+    com_y_sequence = [orbits_com.y[i].to_value(u.kpc)] # here one might want to change to orbits.z[:i, j].to_value(u.kpc)
     line.set_xdata(x_position)
     line.set_ydata(y_position)
     point.set_xdata(x_sequence)
@@ -124,7 +129,7 @@ def animation(i):
 anim = FuncAnimation(fig, animation, frames=len(orbits.t), interval=20)
 
 "Saving specific frames of the animation"
-frames = [199, 399]
+frames = [199, 399] # we have 600 frames as it can be seen from integration timesteps (3000 Gyr/dt=5)
 for i in frames:
   animation(i)
   plt.savefig(f"frame_{i}.pdf", dpi=200)
