@@ -76,6 +76,9 @@ total_pot['m31_disk'] = disk
 total_pot['m31_halo'] = halo
 
 "Integrator method (already defined in previous snippets of code)"
+w0 = gd.PhaseSpacePosition(galcen.cartesian) # initial phase space positions of 10 selected members
+prog_w0 = gd.PhaseSpacePosition(pos=[-8, 0, 0.] * u.kpc,
+                                vel=[0, 150, -89] * u.km/u.s) # initial phase space positions of the whole system
 selected_w0 = w0[:n_members]
 w0_com = prog_w0
 H = gp.Hamiltonian(total_pot)
@@ -113,7 +116,7 @@ for i in range(len(selected_members)):
 
 "Defining the animation frame labels that will be updated at each time step"
 ax.set_xlabel('X [kpc]', fontsize=14)
-ax.set_ylabel('Z [kpc]', fontsize=14)
+ax.set_ylabel('Y [kpc]', fontsize=14)
 ax.tick_params(which="both", labelsize=16, direction="in", top="True", right="True")
 ax.set_xlim(-25, 25)
 ax.set_ylim(-25, 25)
@@ -127,12 +130,12 @@ def animation(i):
     point = points[j]
     x_position = [orbits.x[:i+1, j].to_value(u.kpc)]
     x_sequence = [orbits.x[i, j].to_value(u.kpc)]
-    y_position = [orbits.z[:i+1, j].to_value(u.kpc)]
-    y_sequence = [orbits.z[i, j].to_value(u.kpc)]
+    y_position = [orbits.y[:i+1, j].to_value(u.kpc)]
+    y_sequence = [orbits.y[i, j].to_value(u.kpc)]
     com_x_position = [orbits_com.x[:i+1].to_value(u.kpc)]
-    com_y_position = [orbits_com.z[:i+1].to_value(u.kpc)]
+    com_y_position = [orbits_com.y[:i+1].to_value(u.kpc)]
     com_x_sequence = [orbits_com.x[i].to_value(u.kpc)]
-    com_y_sequence = [orbits_com.z[i].to_value(u.kpc)]
+    com_y_sequence = [orbits_com.y[i].to_value(u.kpc)]
     line.set_xdata(x_position)
     line.set_ydata(y_position)
     point.set_xdata(x_sequence)
